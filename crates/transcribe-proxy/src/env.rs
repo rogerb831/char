@@ -23,6 +23,10 @@ pub struct SttApiKeysEnv {
     pub dashscope_api_key: Option<String>,
     #[serde(default)]
     pub mistral_api_key: Option<String>,
+    #[serde(default)]
+    pub watsonx_api_key: Option<String>,
+    #[serde(default)]
+    pub watsonx_api_base_url: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -87,6 +91,9 @@ impl From<&SttApiKeysEnv> for ApiKeys {
         }
         if let Some(key) = env.mistral_api_key.as_ref().filter(|s| !s.is_empty()) {
             map.insert(Provider::Mistral, key.clone());
+        }
+        if let Some(key) = env.watsonx_api_key.as_ref().filter(|s| !s.is_empty()) {
+            map.insert(Provider::Watsonx, key.clone());
         }
         Self(map)
     }

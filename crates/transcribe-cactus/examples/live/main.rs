@@ -97,7 +97,7 @@ async fn main() {
     };
 
     if args.audio.is_dual() {
-        let client = make_builder().build_dual().await;
+        let client = make_builder().build_dual().await.expect("build_dual");
         let audio_stream = audio::create_dual_stream(&audio, &args.audio);
         let (response_stream, handle) = client
             .from_realtime_audio(audio_stream)
@@ -112,7 +112,7 @@ async fn main() {
             _ => unreachable!(),
         };
 
-        let client = make_builder().build_single().await;
+        let client = make_builder().build_single().await.expect("build_single");
         let audio_stream = audio::create_single_stream(&audio, &args.audio);
         let (response_stream, handle) = client
             .from_realtime_audio(audio_stream)

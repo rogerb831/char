@@ -91,7 +91,7 @@ impl<A: RealtimeSttAdapter> ListenClientBuilder<A> {
         adapter: &A,
         params: &ListenParams,
         channels: u8,
-    ) -> hypr_ws_client::client::ClientRequestBuilder {
+    ) -> Result<hypr_ws_client::client::ClientRequestBuilder, hypr_ws_client::Error> {
         let original_api_base = self.get_api_base();
         let api_base = append_provider_param(original_api_base, adapter.provider_name());
         let url = adapter
@@ -115,28 +115,31 @@ impl<A: RealtimeSttAdapter> ListenClientBuilder<A> {
             request = request.with_header(header_name, header_value);
         }
 
-        request
+        Ok(request)
     }
 
-    pub async fn build_with_channels(self, channels: u8) -> ListenClient<A> {
+    pub async fn build_with_channels(
+        self,
+        channels: u8,
+    ) -> Result<ListenClient<A>, hypr_ws_client::Error> {
         let adapter = A::default();
         let params = self.normalized_params();
-        let request = self.build_request(&adapter, &params, channels).await;
+        let request = self.build_request(&adapter, &params, channels).await?;
         let initial_message = adapter.initial_message(self.api_key.as_deref(), &params, channels);
 
-        ListenClient {
+        Ok(ListenClient {
             adapter,
             request,
             initial_message,
             connect_policy: self.connect_policy,
-        }
+        })
     }
 
-    pub async fn build_single(self) -> ListenClient<A> {
+    pub async fn build_single(self) -> Result<ListenClient<A>, hypr_ws_client::Error> {
         self.build_with_channels(1).await
     }
 
-    pub async fn build_dual(self) -> ListenClientDual<A> {
+    pub async fn build_dual(self) -> Result<ListenClientDual<A>, hypr_ws_client::Error> {
         let adapter = A::default();
         let channels = if adapter.supports_native_multichannel() {
             2
@@ -144,15 +147,15 @@ impl<A: RealtimeSttAdapter> ListenClientBuilder<A> {
             1
         };
         let params = self.normalized_params();
-        let request = self.build_request(&adapter, &params, channels).await;
+        let request = self.build_request(&adapter, &params, channels).await?;
         let initial_message = adapter.initial_message(self.api_key.as_deref(), &params, channels);
 
-        ListenClientDual {
+        Ok(ListenClientDual {
             adapter,
             request,
             initial_message,
             connect_policy: self.connect_policy,
-        }
+        })
     }
 }
 
@@ -716,7 +719,8 @@ mod tests {
                 ..Default::default()
             })
             .build_single()
-            .await;
+            .await
+            .expect("build_single");
 
         let msg = client.initial_message.expect("missing initial message");
         let Message::Text(text) = msg else {
@@ -742,7 +746,8 @@ mod tests {
                 ..Default::default()
             })
             .build_single()
-            .await;
+            .await
+            .expect("build_single");
 
         run_single_test(client, "proxy-deepgram").await;
     }
@@ -759,7 +764,8 @@ mod tests {
                 ..Default::default()
             })
             .build_dual()
-            .await;
+            .await
+            .expect("build_dual");
 
         run_dual_test(client, "proxy-deepgram").await;
     }
@@ -776,7 +782,8 @@ mod tests {
                 ..Default::default()
             })
             .build_single()
-            .await;
+            .await
+            .expect("build_single");
 
         run_single_test(client, "proxy-soniox").await;
     }
@@ -793,7 +800,8 @@ mod tests {
                 ..Default::default()
             })
             .build_dual()
-            .await;
+            .await
+            .expect("build_dual");
 
         run_dual_test(client, "proxy-soniox").await;
     }
@@ -810,7 +818,8 @@ mod tests {
                 ..Default::default()
             })
             .build_single()
-            .await;
+            .await
+            .expect("build_single");
 
         run_single_test(client, "proxy-assemblyai").await;
     }
@@ -827,7 +836,8 @@ mod tests {
                 ..Default::default()
             })
             .build_dual()
-            .await;
+            .await
+            .expect("build_dual");
 
         run_dual_test(client, "proxy-assemblyai").await;
     }

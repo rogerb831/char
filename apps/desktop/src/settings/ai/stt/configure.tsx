@@ -596,9 +596,11 @@ function ProviderContext({ providerId }: { providerId: ProviderId }) {
                   ? `Use [Fireworks AI](https://fireworks.ai) for transcriptions.`
                   : providerId === "mistral"
                     ? `Use [Mistral](https://mistral.ai) for transcriptions.`
-                    : providerId === "custom"
-                      ? `We only support **Deepgram compatible** endpoints for now.`
-                      : "";
+                    : providerId === "watsonx"
+                      ? `Use [IBM watsonx Speech to Text](https://cloud.ibm.com/docs/speech-to-text) on IBM Cloud. Set **Base URL** to your service URL (regional host or \`/instances/{id}\` URL from IBM Cloud) and **API key** to your Speech-to-Text **API key** (same as \`curl -u apikey:...\`). See the [models list](https://cloud.ibm.com/docs/speech-to-text?topic=speech-to-text-models) for model identifiers.`
+                      : providerId === "custom"
+                        ? `We only support **Deepgram compatible** endpoints for now.`
+                        : "";
 
   if (!content.trim()) {
     return null;

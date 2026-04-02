@@ -38,6 +38,7 @@ const BATCH_PROVIDER_MAP: Record<string, BatchParams["provider"]> = {
   elevenlabs: "elevenlabs",
   mistral: "mistral",
   fireworks: "fireworks",
+  watsonx: "watsonx",
 };
 
 function getBatchProvider(

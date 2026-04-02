@@ -173,10 +173,12 @@ impl<S: HasHeaders> WebSocketProxyBuilder<S> {
         let api_key = selected.api_key();
 
         match provider.auth() {
-            Auth::Header { .. } => match provider.build_auth_header(api_key) {
-                Some((name, value)) => self.header(name, value),
-                None => self,
-            },
+            Auth::Header { .. } | Auth::HttpBasic { .. } => {
+                match provider.build_auth_header(api_key) {
+                    Some((name, value)) => self.header(name, value),
+                    None => self,
+                }
+            }
             Auth::FirstMessage { .. } => {
                 let auth = provider.auth();
                 let api_key = api_key.to_string();

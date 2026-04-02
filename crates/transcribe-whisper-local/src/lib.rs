@@ -38,7 +38,8 @@ mod tests {
         let client = owhisper_client::ListenClient::builder()
             .api_base(format!("http://{}/v1", addr))
             .build_single()
-            .await;
+            .await
+            .expect("build listen client");
 
         let audio = rodio::Decoder::try_from(
             std::fs::File::open(hypr_data::english_1::AUDIO_PATH).unwrap(),

@@ -40,6 +40,7 @@ impl Default for HyprnoteRoutingConfig {
                 Provider::OpenAI,
                 Provider::Mistral,
                 Provider::DashScope,
+                Provider::Watsonx,
             ],
             retry_config: RetryConfig::default(),
         }
@@ -590,5 +591,6 @@ mod tests {
 
         assert!(config.priorities.contains(&Provider::Mistral));
         assert!(config.priorities.contains(&Provider::DashScope));
+        assert!(config.priorities.contains(&Provider::Watsonx));
     }
 }

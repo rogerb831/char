@@ -4,7 +4,8 @@ use std::time::Duration;
 use owhisper_client::{
     AdapterKind, ArgmaxAdapter, AssemblyAIAdapter, CactusAdapter, DashScopeAdapter,
     DeepgramAdapter, ElevenLabsAdapter, FireworksAdapter, GladiaAdapter, HyprnoteAdapter,
-    MistralAdapter, OpenAIAdapter, RealtimeSttAdapter, SonioxAdapter, WhisperCppAdapter,
+    MistralAdapter, OpenAIAdapter, RealtimeSttAdapter, SonioxAdapter, WatsonxAdapter,
+    WhisperCppAdapter,
 };
 use owhisper_interface::{ControlMessage, MixedMessage};
 use ractor::{ActorProcessingErr, ActorRef};
@@ -67,6 +68,7 @@ pub(super) async fn spawn_batch_task(
             spawn_batch_task_with_adapter::<DashScopeAdapter>(args, myself).await
         }
         AdapterKind::Mistral => spawn_batch_task_with_adapter::<MistralAdapter>(args, myself).await,
+        AdapterKind::Watsonx => spawn_batch_task_with_adapter::<WatsonxAdapter>(args, myself).await,
         AdapterKind::Hyprnote => {
             spawn_batch_task_with_adapter::<HyprnoteAdapter>(args, myself).await
         }
@@ -282,14 +284,26 @@ async fn spawn_batch_task_with_adapter<A: RealtimeSttAdapter>(
             let chunk_interval = stream_config.chunk_interval();
 
             if channels >= 2 {
-                let client = owhisper_client::ListenClient::builder()
+                let client = match owhisper_client::ListenClient::builder()
                     .adapter::<A>()
                     .api_base(args.base_url.clone())
                     .api_key(args.api_key.clone())
                     .params(listen_params)
                     .extra_header(DEVICE_FINGERPRINT_HEADER, hypr_host::fingerprint())
                     .build_dual()
-                    .await;
+                    .await
+                {
+                    Ok(c) => c,
+                    Err(err) => {
+                        report_stream_start_failure(
+                            &myself,
+                            &args.start_notifier,
+                            &err,
+                            "batch task (dual) failed to build listen client",
+                        );
+                        return;
+                    }
+                };
 
                 let audio_stream =
                     tokio_stream::iter(chunked_audio.chunks.into_iter().map(|chunk| {
@@ -326,14 +340,26 @@ async fn spawn_batch_task_with_adapter<A: RealtimeSttAdapter>(
                 process_batch_stream(listen_stream, myself, shutdown_rx, audio_duration_secs, 2)
                     .await;
             } else {
-                let client = owhisper_client::ListenClient::builder()
+                let client = match owhisper_client::ListenClient::builder()
                     .adapter::<A>()
                     .api_base(args.base_url.clone())
                     .api_key(args.api_key.clone())
                     .params(listen_params)
                     .extra_header(DEVICE_FINGERPRINT_HEADER, hypr_host::fingerprint())
                     .build_with_channels(channels.clamp(1, 2))
-                    .await;
+                    .await
+                {
+                    Ok(c) => c,
+                    Err(err) => {
+                        report_stream_start_failure(
+                            &myself,
+                            &args.start_notifier,
+                            &err,
+                            "batch task failed to build listen client",
+                        );
+                        return;
+                    }
+                };
 
                 let audio_stream =
                     tokio_stream::iter(chunked_audio.chunks.into_iter().map(MixedMessage::Audio));

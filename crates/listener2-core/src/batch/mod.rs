@@ -7,6 +7,7 @@ use std::sync::Arc;
 use owhisper_client::{
     ArgmaxAdapter, AssemblyAIAdapter, BatchSttAdapter, DeepgramAdapter, ElevenLabsAdapter,
     FireworksAdapter, GladiaAdapter, HyprnoteAdapter, MistralAdapter, OpenAIAdapter, SonioxAdapter,
+    WatsonxAdapter,
 };
 use tracing::Instrument;
 
@@ -32,6 +33,7 @@ pub enum BatchProvider {
     ElevenLabs,
     DashScope,
     Mistral,
+    Watsonx,
     Hyprnote,
     Am,
     Cactus,
@@ -172,6 +174,7 @@ async fn run_batch_inner(
         }
         .into()),
         BatchProvider::Mistral => run_batch_simple::<MistralAdapter>(params, listen_params).await,
+        BatchProvider::Watsonx => run_batch_simple::<WatsonxAdapter>(params, listen_params).await,
         BatchProvider::Hyprnote => run_batch_simple::<HyprnoteAdapter>(params, listen_params).await,
     }
 }

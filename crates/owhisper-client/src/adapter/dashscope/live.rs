@@ -418,7 +418,8 @@ mod tests {
                 ..Default::default()
             })
             .build_single()
-            .await;
+            .await
+            .expect("build_single");
 
         crate::test_utils::run_single_test(client, "dashscope").await;
     }
@@ -437,7 +438,8 @@ mod tests {
                 ..Default::default()
             })
             .build_dual()
-            .await;
+            .await
+            .expect("build_dual");
 
         crate::test_utils::run_dual_test(client, "dashscope").await;
     }

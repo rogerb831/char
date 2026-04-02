@@ -6,7 +6,8 @@ use ractor::{ActorProcessingErr, ActorRef};
 use owhisper_client::{
     AdapterKind, ArgmaxAdapter, AssemblyAIAdapter, CactusAdapter, DashScopeAdapter,
     DeepgramAdapter, ElevenLabsAdapter, FireworksAdapter, GladiaAdapter, HyprnoteAdapter,
-    MistralAdapter, OpenAIAdapter, RealtimeSttAdapter, SonioxAdapter, hypr_ws_client,
+    MistralAdapter, OpenAIAdapter, RealtimeSttAdapter, SonioxAdapter, WatsonxAdapter,
+    hypr_ws_client,
 };
 use owhisper_interface::stream::Extra;
 use owhisper_interface::{ControlMessage, MixedMessage};
@@ -92,6 +93,12 @@ pub(super) async fn spawn_rx_task(
         (AdapterKind::Mistral, true) => {
             spawn_rx_task_dual_with_adapter::<MistralAdapter>(args, myself).await
         }
+        (AdapterKind::Watsonx, false) => {
+            spawn_rx_task_single_with_adapter::<WatsonxAdapter>(args, myself).await
+        }
+        (AdapterKind::Watsonx, true) => {
+            spawn_rx_task_dual_with_adapter::<WatsonxAdapter>(args, myself).await
+        }
         (AdapterKind::Hyprnote, false) => {
             spawn_rx_task_single_with_adapter::<HyprnoteAdapter>(args, myself).await
         }
@@ -164,7 +171,7 @@ async fn spawn_rx_task_single_with_adapter<A: RealtimeSttAdapter>(
 
     let (tx, rx) = tokio::sync::mpsc::channel::<MixedMessage<Bytes, ControlMessage>>(32);
 
-    let client = owhisper_client::ListenClient::builder()
+    let client = match owhisper_client::ListenClient::builder()
         .adapter::<A>()
         .api_base(args.base_url.clone())
         .api_key(args.api_key.clone())
@@ -172,7 +179,22 @@ async fn spawn_rx_task_single_with_adapter<A: RealtimeSttAdapter>(
         .connect_policy(desktop_connect_policy())
         .extra_header(DEVICE_FINGERPRINT_HEADER, hypr_host::fingerprint())
         .build_single()
-        .await;
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!(
+                hyprnote.session.id = %args.session_id,
+                error.message = ?e,
+                "listen_client_build_failed(single)"
+            );
+            args.runtime.emit_error(SessionErrorEvent::ConnectionError {
+                session_id: args.session_id.clone(),
+                error: format!("listen_client_build_failed: {:?}", e),
+            });
+            return Err(actor_error(format!("listen_client_build_failed: {:?}", e)));
+        }
+    };
 
     let outbound = tokio_stream::wrappers::ReceiverStream::new(rx);
 
@@ -224,7 +246,7 @@ async fn spawn_rx_task_dual_with_adapter<A: RealtimeSttAdapter>(
 
     let (tx, rx) = tokio::sync::mpsc::channel::<MixedMessage<(Bytes, Bytes), ControlMessage>>(32);
 
-    let client = owhisper_client::ListenClient::builder()
+    let client = match owhisper_client::ListenClient::builder()
         .adapter::<A>()
         .api_base(args.base_url.clone())
         .api_key(args.api_key.clone())
@@ -232,7 +254,22 @@ async fn spawn_rx_task_dual_with_adapter<A: RealtimeSttAdapter>(
         .connect_policy(desktop_connect_policy())
         .extra_header(DEVICE_FINGERPRINT_HEADER, hypr_host::fingerprint())
         .build_dual()
-        .await;
+        .await
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!(
+                hyprnote.session.id = %args.session_id,
+                error.message = ?e,
+                "listen_client_build_failed(dual)"
+            );
+            args.runtime.emit_error(SessionErrorEvent::ConnectionError {
+                session_id: args.session_id.clone(),
+                error: format!("listen_client_build_failed: {:?}", e),
+            });
+            return Err(actor_error(format!("listen_client_build_failed: {:?}", e)));
+        }
+    };
 
     let outbound = tokio_stream::wrappers::ReceiverStream::new(rx);
 

@@ -21,6 +21,8 @@ exclude = [
   "plugins/cli2",
   "plugins/db",
   "plugins/extensions",
+  "plugins/pyannote-local",
+  "crates/pyannote-local-model",
   "crates/vad-ext",
 ]
 

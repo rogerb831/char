@@ -141,7 +141,7 @@ impl StreamingProxyPlan {
         let api_key = selected.api_key();
 
         match provider.auth() {
-            Auth::Header { .. } => {
+            Auth::Header { .. } | Auth::HttpBasic { .. } => {
                 if let Some((name, value)) = provider.build_auth_header(api_key) {
                     self.headers.insert(name.to_string(), value.to_string());
                 }

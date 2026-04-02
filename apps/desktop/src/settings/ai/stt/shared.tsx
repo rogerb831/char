@@ -73,6 +73,14 @@ export const displayModelId = (model: string) => {
     return "Voxtral Mini Transcribe 2";
   }
 
+  if (
+    model.includes("_BroadbandModel") ||
+    model.includes("_NarrowbandModel") ||
+    model.includes("_Telephony")
+  ) {
+    return model.replace(/_/g, " ");
+  }
+
   if (model.startsWith("am-")) {
     const am = model as AmModel;
     if (am == "am-parakeet-v2") {
@@ -200,6 +208,27 @@ const _PROVIDERS = [
     baseUrl: "https://api.mistral.ai/v1",
     models: ["voxtral-mini-2602"],
     requirements: [{ kind: "requires_config", fields: ["api_key"] }],
+  },
+  {
+    disabled: false,
+    id: "watsonx",
+    displayName: "IBM watsonx",
+    badge: "Beta",
+    icon: <Icon icon="simple-icons:ibm" className="size-4" />,
+    baseUrl: undefined,
+    models: [
+      "en-US_BroadbandModel",
+      "en-US_NarrowbandModel",
+      "en-GB_BroadbandModel",
+      "es-ES_BroadbandModel",
+      "fr-FR_BroadbandModel",
+      "de-DE_BroadbandModel",
+      "ja-JP_BroadbandModel",
+      "zh-CN_BroadbandModel",
+    ],
+    requirements: [
+      { kind: "requires_config", fields: ["base_url", "api_key"] },
+    ],
   },
   {
     disabled: false,

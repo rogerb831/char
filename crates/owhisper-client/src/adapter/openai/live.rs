@@ -432,7 +432,8 @@ mod tests {
                 ..Default::default()
             })
             .build_single()
-            .await;
+            .await
+            .expect("build_single");
 
         run_single_test_with_rate(client, "openai", OPENAI_SAMPLE_RATE).await;
     }
@@ -451,7 +452,8 @@ mod tests {
                 ..Default::default()
             })
             .build_dual()
-            .await;
+            .await
+            .expect("build_dual");
 
         run_dual_test_with_rate(client, "openai", OPENAI_SAMPLE_RATE).await;
     }

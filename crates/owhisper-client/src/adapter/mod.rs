@@ -17,6 +17,7 @@ mod mistral;
 mod openai;
 mod owhisper;
 pub(crate) mod soniox;
+mod watsonx;
 mod whispercpp;
 
 pub use argmax::*;
@@ -32,6 +33,7 @@ pub use language::{LanguageQuality, LanguageSupport};
 pub use mistral::*;
 pub use openai::*;
 pub use soniox::*;
+pub use watsonx::WatsonxAdapter;
 pub use whispercpp::*;
 
 use std::collections::{BTreeSet, HashSet};
@@ -375,6 +377,8 @@ pub enum AdapterKind {
     DashScope,
     #[strum(serialize = "mistral")]
     Mistral,
+    #[strum(serialize = "watsonx")]
+    Watsonx,
     #[strum(serialize = "hyprnote")]
     Hyprnote,
     #[strum(serialize = "cactus")]
@@ -426,6 +430,7 @@ impl AdapterKind {
             Self::DashScope => DashScopeAdapter::language_support_live(languages),
             Self::Argmax => ArgmaxAdapter::language_support_live(languages, model),
             Self::Mistral => MistralAdapter::language_support_live(languages),
+            Self::Watsonx => WatsonxAdapter::language_support_live(languages),
             Self::Hyprnote | Self::Cactus => LanguageSupport::Supported {
                 quality: LanguageQuality::NoData,
             },
@@ -451,6 +456,7 @@ impl AdapterKind {
             Self::DashScope => DashScopeAdapter::language_support_batch(languages),
             Self::Argmax => ArgmaxAdapter::language_support_batch(languages, model),
             Self::Mistral => MistralAdapter::language_support_batch(languages),
+            Self::Watsonx => WatsonxAdapter::language_support_batch(languages),
             Self::Hyprnote | Self::Cactus => LanguageSupport::Supported {
                 quality: LanguageQuality::NoData,
             },
@@ -507,6 +513,7 @@ impl From<crate::providers::Provider> for AdapterKind {
             Provider::ElevenLabs => Self::ElevenLabs,
             Provider::DashScope => Self::DashScope,
             Provider::Mistral => Self::Mistral,
+            Provider::Watsonx => Self::Watsonx,
         }
     }
 }
@@ -826,6 +833,14 @@ mod tests {
         assert_eq!(
             AdapterKind::from_url_and_languages("https://api.soniox.com", &en, None),
             AdapterKind::Soniox,
+        );
+        assert_eq!(
+            AdapterKind::from_url_and_languages(
+                "https://api.us-south.speech-to-text.watson.cloud.ibm.com",
+                &en,
+                None,
+            ),
+            AdapterKind::Watsonx,
         );
         assert_eq!(
             AdapterKind::from_url_and_languages("http://localhost:50060/v1", &en, None),

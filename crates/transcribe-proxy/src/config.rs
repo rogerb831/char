@@ -37,12 +37,23 @@ pub struct SttProxyConfig {
 
 impl SttProxyConfig {
     pub fn new(env: &Env, supabase: &hypr_api_env::SupabaseEnv) -> Self {
+        let mut upstream_urls = HashMap::new();
+        if let Some(url) = env
+            .stt
+            .watsonx_api_base_url
+            .as_ref()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+        {
+            upstream_urls.insert(Provider::Watsonx, url);
+        }
+
         Self {
             api_keys: ApiKeys::from(&env.stt).0,
             default_provider: Provider::Deepgram,
             connect_timeout: Duration::from_millis(DEFAULT_CONNECT_TIMEOUT_MS),
             analytics: None,
-            upstream_urls: HashMap::new(),
+            upstream_urls,
             hyprnote_routing: None,
             supabase: SupabaseConfig {
                 url: Some(supabase.supabase_url.clone()),

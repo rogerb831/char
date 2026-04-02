@@ -638,7 +638,8 @@ mod tests {
                     .api_key(std::env::var("GLADIA_API_KEY").expect("GLADIA_API_KEY not set"))
                     .params($params)
                     .build_single()
-                    .await;
+                    .await
+                    .expect("build_single");
                 run_single_test(client, "gladia").await;
             }
         };
@@ -695,7 +696,8 @@ mod tests {
                 ..Default::default()
             })
             .build_dual()
-            .await;
+            .await
+            .expect("build_dual");
 
         run_dual_test(client, "gladia").await;
     }

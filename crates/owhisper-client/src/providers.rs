@@ -14,6 +14,9 @@ pub enum Auth {
         name: &'static str,
         prefix: Option<&'static str>,
     },
+    HttpBasic {
+        username: &'static str,
+    },
     FirstMessage {
         field_name: &'static str,
     },
@@ -31,6 +34,22 @@ impl Auth {
                     None => api_key.to_string(),
                 };
                 Some((name, value))
+            }
+            Auth::HttpBasic { username } => {
+                let trimmed = api_key.trim().trim_end_matches('\r');
+                let key = trimmed
+                    .strip_prefix("Bearer ")
+                    .map(str::trim)
+                    .unwrap_or(trimmed)
+                    .trim_end_matches('\r');
+                if key.is_empty() {
+                    return None;
+                }
+                use base64::Engine;
+                let credentials = format!("{username}:{key}");
+                let encoded =
+                    base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes());
+                Some(("Authorization", format!("Basic {encoded}")))
             }
             Auth::FirstMessage { .. } | Auth::SessionInit { .. } => None,
         }
@@ -59,7 +78,7 @@ impl Auth {
                     Err(_) => payload,
                 }
             }
-            Auth::Header { .. } | Auth::SessionInit { .. } => payload,
+            Auth::Header { .. } | Auth::HttpBasic { .. } | Auth::SessionInit { .. } => payload,
         }
     }
 }
@@ -84,10 +103,12 @@ pub enum Provider {
     DashScope,
     #[strum(serialize = "mistral")]
     Mistral,
+    #[strum(serialize = "watsonx")]
+    Watsonx,
 }
 
 impl Provider {
-    const ALL: [Provider; 9] = [
+    const ALL: [Provider; 10] = [
         Self::Deepgram,
         Self::AssemblyAI,
         Self::Soniox,
@@ -97,6 +118,7 @@ impl Provider {
         Self::ElevenLabs,
         Self::DashScope,
         Self::Mistral,
+        Self::Watsonx,
     ];
 
     pub fn from_host(host: &str) -> Option<Self> {
@@ -139,6 +161,7 @@ impl Provider {
                 name: "Authorization",
                 prefix: Some("Bearer "),
             },
+            Self::Watsonx => Auth::HttpBasic { username: "apikey" },
         }
     }
 
@@ -161,6 +184,7 @@ impl Provider {
             Self::ElevenLabs => "api.elevenlabs.io",
             Self::DashScope => "dashscope-intl.aliyuncs.com",
             Self::Mistral => "api.mistral.ai",
+            Self::Watsonx => "api.us-south.speech-to-text.watson.cloud.ibm.com",
         }
     }
 
@@ -175,6 +199,7 @@ impl Provider {
             Self::ElevenLabs => "api.elevenlabs.io",
             Self::DashScope => "dashscope-intl.aliyuncs.com",
             Self::Mistral => "api.mistral.ai",
+            Self::Watsonx => "api.us-south.speech-to-text.watson.cloud.ibm.com",
         }
     }
 
@@ -189,6 +214,7 @@ impl Provider {
             Self::ElevenLabs => "/v1/speech-to-text/realtime",
             Self::DashScope => "/api-ws/v1/realtime",
             Self::Mistral => "/v1/audio/transcriptions/realtime",
+            Self::Watsonx => "/v1/recognize",
         }
     }
 
@@ -203,6 +229,7 @@ impl Provider {
             Self::ElevenLabs => Some("https://api.elevenlabs.io/v1"),
             Self::DashScope => None,
             Self::Mistral => None,
+            Self::Watsonx => None,
         }
     }
 
@@ -217,6 +244,7 @@ impl Provider {
             Self::ElevenLabs => "https://api.elevenlabs.io",
             Self::DashScope => "https://dashscope-intl.aliyuncs.com",
             Self::Mistral => "https://api.mistral.ai/v1",
+            Self::Watsonx => "https://api.us-south.speech-to-text.watson.cloud.ibm.com",
         }
     }
 
@@ -231,6 +259,7 @@ impl Provider {
             Self::ElevenLabs => "elevenlabs.io",
             Self::DashScope => "aliyuncs.com",
             Self::Mistral => "mistral.ai",
+            Self::Watsonx => "speech-to-text.watson.cloud.ibm.com",
         }
     }
 
@@ -263,6 +292,7 @@ impl Provider {
             Self::ElevenLabs => "ELEVENLABS_API_KEY",
             Self::DashScope => "DASHSCOPE_API_KEY",
             Self::Mistral => "MISTRAL_API_KEY",
+            Self::Watsonx => "WATSONX_API_KEY",
         }
     }
 
@@ -277,13 +307,14 @@ impl Provider {
             Self::ElevenLabs => "scribe_v2_realtime",
             Self::DashScope => "qwen3-asr-flash-realtime",
             Self::Mistral => "voxtral-mini-transcribe-realtime-2602",
+            Self::Watsonx => "en-US_BroadbandModel",
         }
     }
 
     pub fn default_live_sample_rate(&self) -> u32 {
         match self {
             Self::OpenAI => 24000,
-            Self::ElevenLabs | Self::DashScope | Self::Mistral => 16000,
+            Self::ElevenLabs | Self::DashScope | Self::Mistral | Self::Watsonx => 16000,
             _ => 16000,
         }
     }
@@ -299,6 +330,7 @@ impl Provider {
             Self::ElevenLabs => "scribe_v2",
             Self::DashScope => "qwen3-asr-flash-filetrans",
             Self::Mistral => "voxtral-mini-2602",
+            Self::Watsonx => "en-US_BroadbandModel",
         }
     }
 
@@ -306,7 +338,7 @@ impl Provider {
         match self {
             Self::Deepgram => &[("model", "nova-3-general"), ("mip_opt_out", "false")],
             Self::OpenAI => &[("intent", "transcription")],
-            Self::DashScope | Self::Mistral => &[],
+            Self::DashScope | Self::Mistral | Self::Watsonx => &[],
             _ => &[],
         }
     }
@@ -320,7 +352,8 @@ impl Provider {
             | Self::OpenAI
             | Self::ElevenLabs
             | Self::DashScope
-            | Self::Mistral => false,
+            | Self::Mistral
+            | Self::Watsonx => false,
         }
     }
 
@@ -333,7 +366,7 @@ impl Provider {
             Self::OpenAI => &[],
             Self::Gladia => &[],
             Self::ElevenLabs => &["commit"],
-            Self::DashScope | Self::Mistral => &[],
+            Self::DashScope | Self::Mistral | Self::Watsonx => &[],
         }
     }
 
@@ -352,7 +385,6 @@ impl Provider {
                     "words_accurate_timestamps": true
                 }
             })),
-            Self::Mistral => None,
             _ => None,
         }
     }
@@ -390,6 +422,7 @@ impl Provider {
             Self::ElevenLabs => from_adapter(&crate::adapter::ElevenLabsAdapter, msg),
             Self::DashScope => from_adapter(&crate::adapter::DashScopeAdapter, msg),
             Self::Mistral => from_adapter(&crate::adapter::MistralAdapter::default(), msg),
+            Self::Watsonx => from_adapter(&crate::adapter::WatsonxAdapter::default(), msg),
         }
     }
 
@@ -400,10 +433,60 @@ impl Provider {
             Self::ElevenLabs => elevenlabs::error::detect_error(data),
             Self::AssemblyAI => assemblyai::error::detect_error(data),
             Self::Fireworks | Self::OpenAI | Self::Gladia | Self::DashScope | Self::Mistral => None,
+            Self::Watsonx => watsonx_detect_error(data),
         }
     }
 
     pub fn detect_any_error(data: &[u8]) -> Option<ProviderError> {
         Self::ALL.iter().find_map(|p| p.detect_error(data))
+    }
+}
+
+fn watsonx_detect_error(data: &[u8]) -> Option<ProviderError> {
+    let s = std::str::from_utf8(data).ok()?;
+    let v: serde_json::Value = serde_json::from_str(s).ok()?;
+    let err = v.get("error")?;
+    if err.is_string() {
+        return Some(ProviderError::new(400, err.as_str()?.to_string()));
+    }
+    let obj = err.as_object()?;
+    let message = obj
+        .get("message")
+        .and_then(|m| m.as_str())
+        .map(str::to_string)
+        .or_else(|| {
+            obj.get("error")
+                .and_then(|m| m.as_str())
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| "watsonx error".to_string());
+    let http_code = obj
+        .get("code")
+        .and_then(|c| {
+            c.as_u64()
+                .map(|n| n as u16)
+                .or_else(|| c.as_i64().map(|n| n as u16))
+        })
+        .unwrap_or(400);
+    Some(ProviderError::new(http_code, message))
+}
+
+#[cfg(test)]
+mod auth_tests {
+    use super::Provider;
+
+    #[test]
+    fn watsonx_builds_basic_apikey_header() {
+        let (name, value) = Provider::Watsonx.build_auth_header("my-api-key").unwrap();
+        assert_eq!(name, "Authorization");
+        assert_eq!(value, "Basic YXBpa2V5Om15LWFwaS1rZXk=");
+    }
+
+    #[test]
+    fn watsonx_strips_bearer_prefix_and_cr() {
+        let (_, value) = Provider::Watsonx
+            .build_auth_header("Bearer abc\r\n")
+            .unwrap();
+        assert_eq!(value, "Basic YXBpa2V5OmFiYw==");
     }
 }

@@ -41,7 +41,8 @@ async fn e2e_deepgram_with_mock_analytics() {
             ..Default::default()
         })
         .build_single()
-        .await;
+        .await
+        .expect("build_single");
 
     let input = test_audio_stream();
     let (stream, handle) = client.from_realtime_audio(input).await.unwrap();
