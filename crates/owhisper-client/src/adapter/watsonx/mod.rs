@@ -58,10 +58,91 @@ impl WatsonxAdapter {
 
 #[cfg(test)]
 mod tests {
+    use hypr_ws_client::client::Message;
+    use owhisper_interface::ListenParams;
     use owhisper_interface::stream::StreamResponse;
 
     use super::*;
     use crate::adapter::RealtimeSttAdapter;
+
+    #[test]
+    fn initial_message_multimedia_sets_inactivity_and_low_latency() {
+        let adapter = WatsonxAdapter::default();
+        let params = ListenParams {
+            model: Some("en-US_Multimedia".to_string()),
+            sample_rate: 16000,
+            ..Default::default()
+        };
+        let Some(Message::Text(t)) = adapter.initial_message(None, &params, 1) else {
+            panic!("expected text start message");
+        };
+        let v: serde_json::Value = serde_json::from_str(t.as_str()).expect("json");
+        assert_eq!(v["inactivity_timeout"], 3600);
+        assert_eq!(v["low_latency"], true);
+    }
+
+    #[test]
+    fn initial_message_stereo_sets_two_channels_in_content_type() {
+        let adapter = WatsonxAdapter::default();
+        let params = ListenParams {
+            model: Some("en-US_Multimedia".to_string()),
+            sample_rate: 16000,
+            ..Default::default()
+        };
+        let Some(Message::Text(t)) = adapter.initial_message(None, &params, 2) else {
+            panic!("expected text start message");
+        };
+        assert!(
+            t.contains("channels=2"),
+            "expected stereo content-type, got {t}"
+        );
+    }
+
+    #[test]
+    fn parse_result_respects_channel_index_when_present() {
+        let adapter = WatsonxAdapter::default();
+        let raw = r#"{"result_index":0,"results":[{"final":false,"channel_index":[1],"alternatives":[{"transcript":"hi","confidence":0.9,"timestamps":[]}]}]}"#;
+        let out = adapter.parse_response(raw);
+        assert_eq!(out.len(), 1);
+        let StreamResponse::TranscriptResponse { channel_index, .. } = &out[0] else {
+            panic!("expected transcript");
+        };
+        assert_eq!(channel_index.as_slice(), [1_i32]);
+    }
+
+    #[test]
+    fn initial_message_broadband_omits_low_latency() {
+        let adapter = WatsonxAdapter::default();
+        let params = ListenParams {
+            model: Some("en-US_BroadbandModel".to_string()),
+            sample_rate: 16000,
+            ..Default::default()
+        };
+        let Some(Message::Text(t)) = adapter.initial_message(None, &params, 1) else {
+            panic!("expected text start message");
+        };
+        let v: serde_json::Value = serde_json::from_str(t.as_str()).expect("json");
+        assert_eq!(v["inactivity_timeout"], 3600);
+        assert!(v.get("low_latency").is_none());
+    }
+
+    #[test]
+    fn parse_top_level_string_error_emits_error_response() {
+        let adapter = WatsonxAdapter::default();
+        let raw = r#"{"error":"Unsupported model for this session."}"#;
+        let out = adapter.parse_response(raw);
+        assert_eq!(out.len(), 1);
+        let StreamResponse::ErrorResponse {
+            error_message,
+            provider,
+            ..
+        } = &out[0]
+        else {
+            panic!("expected error response");
+        };
+        assert_eq!(provider, "watsonx");
+        assert_eq!(error_message, "Unsupported model for this session.");
+    }
 
     #[test]
     fn parse_interim_without_timestamps_uses_nonzero_word_span() {

@@ -76,6 +76,7 @@ export const displayModelId = (model: string) => {
   if (
     model.includes("_BroadbandModel") ||
     model.includes("_NarrowbandModel") ||
+    model.includes("_Multimedia") ||
     model.includes("_Telephony")
   ) {
     return model.replace(/_/g, " ");
@@ -217,14 +218,13 @@ const _PROVIDERS = [
     icon: <Icon icon="simple-icons:ibm" className="size-4" />,
     baseUrl: undefined,
     models: [
-      "en-US_BroadbandModel",
-      "en-US_NarrowbandModel",
-      "en-GB_BroadbandModel",
-      "es-ES_BroadbandModel",
-      "fr-FR_BroadbandModel",
-      "de-DE_BroadbandModel",
-      "ja-JP_BroadbandModel",
-      "zh-CN_BroadbandModel",
+      "en-US_Multimedia",
+      "en-GB_Multimedia",
+      "fr-FR_Multimedia",
+      "es-ES_Multimedia",
+      "de-DE_Multimedia",
+      "ja-JP_Multimedia",
+      "zh-CN_Multimedia",
     ],
     requirements: [
       { kind: "requires_config", fields: ["base_url", "api_key"] },

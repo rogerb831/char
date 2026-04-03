@@ -307,7 +307,7 @@ impl Provider {
             Self::ElevenLabs => "scribe_v2_realtime",
             Self::DashScope => "qwen3-asr-flash-realtime",
             Self::Mistral => "voxtral-mini-transcribe-realtime-2602",
-            Self::Watsonx => "en-US_BroadbandModel",
+            Self::Watsonx => "en-US_Multimedia",
         }
     }
 
@@ -330,7 +330,7 @@ impl Provider {
             Self::ElevenLabs => "scribe_v2",
             Self::DashScope => "qwen3-asr-flash-filetrans",
             Self::Mistral => "voxtral-mini-2602",
-            Self::Watsonx => "en-US_BroadbandModel",
+            Self::Watsonx => "en-US_Multimedia",
         }
     }
 
@@ -345,15 +345,14 @@ impl Provider {
 
     pub fn supports_native_multichannel(&self) -> bool {
         match self {
-            Self::Deepgram | Self::Gladia => true,
+            Self::Deepgram | Self::Gladia | Self::Watsonx => true,
             Self::Soniox
             | Self::AssemblyAI
             | Self::Fireworks
             | Self::OpenAI
             | Self::ElevenLabs
             | Self::DashScope
-            | Self::Mistral
-            | Self::Watsonx => false,
+            | Self::Mistral => false,
         }
     }
 

@@ -23,7 +23,7 @@ impl RealtimeSttAdapter for WatsonxAdapter {
     }
 
     fn supports_native_multichannel(&self) -> bool {
-        false
+        true
     }
 
     fn build_ws_url(&self, api_base: &str, params: &ListenParams, _channels: u8) -> url::Url {
@@ -77,13 +77,22 @@ impl RealtimeSttAdapter for WatsonxAdapter {
             interim_results: true,
             word_confidence: true,
             timestamps: true,
-            inactivity_timeout: -1,
+            inactivity_timeout: IBM_WS_INACTIVITY_TIMEOUT_SECS,
+            low_latency: watsonx_low_latency_for_model(params.model.as_deref()),
         };
         let json = serde_json::to_string(&start).ok()?;
         Some(Message::Text(json.into()))
     }
 
     fn parse_response(&self, raw: &str) -> Vec<StreamResponse> {
+        if let Some(pe) = Provider::Watsonx.detect_error(raw.as_bytes()) {
+            return vec![StreamResponse::ErrorResponse {
+                error_code: Some(pe.http_code as i32),
+                error_message: pe.message,
+                provider: "watsonx".to_string(),
+            }];
+        }
+
         if let Ok(state) = serde_json::from_str::<StateMessage>(raw) {
             if state.state.is_some() {
                 tracing::debug!(hyprnote.payload = %raw, "watsonx_state_message");
@@ -158,6 +167,13 @@ impl RealtimeSttAdapter for WatsonxAdapter {
                 }],
             };
 
+            let channel_index = block
+                .channel_index
+                .as_ref()
+                .and_then(|v| v.first())
+                .copied()
+                .unwrap_or(0);
+
             out.push(StreamResponse::TranscriptResponse {
                 is_final,
                 speech_final: is_final,
@@ -166,7 +182,7 @@ impl RealtimeSttAdapter for WatsonxAdapter {
                 duration,
                 channel,
                 metadata: Metadata::default(),
-                channel_index: vec![0],
+                channel_index: vec![channel_index],
             });
         }
 
@@ -188,6 +204,19 @@ fn should_use_synthetic_watsonx_timing(words: &[Word]) -> bool {
     words.is_empty() || words.iter().all(|w| w.start == 0.0 && w.end == 0.0)
 }
 
+/// IBM closes streaming sessions when only silence is detected for the inactivity window (default
+/// ~30s). `-1` is documented as unlimited but is not reliably honored for next-gen models; dual WS
+/// (mic + system audio) often leaves the speaker leg silent and hits that default.
+const IBM_WS_INACTIVITY_TIMEOUT_SECS: i32 = 3600;
+
+fn watsonx_low_latency_for_model(model: Option<&str>) -> Option<bool> {
+    let use_ll = match model {
+        None => true,
+        Some(m) => m.contains("Multimedia") || m.contains("Telephony"),
+    };
+    use_ll.then_some(true)
+}
+
 #[derive(serde::Serialize)]
 struct StartMessage<'a> {
     action: &'a str,
@@ -197,6 +226,8 @@ struct StartMessage<'a> {
     word_confidence: bool,
     timestamps: bool,
     inactivity_timeout: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    low_latency: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -228,6 +259,8 @@ struct ResultsPayload {
 struct ResultBlock {
     #[serde(default, rename = "final")]
     final_: bool,
+    #[serde(default)]
+    channel_index: Option<Vec<i32>>,
     #[serde(default)]
     alternatives: Vec<WatsonAlternative>,
 }
