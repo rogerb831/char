@@ -66,6 +66,40 @@ impl TranscriptProcessor {
     pub fn process(&mut self, response: &StreamResponse) -> Option<TranscriptDelta> {
         let parsed = ParsedStreamResponse::from_response(response)?;
         let raw_words = assemble(parsed.words, parsed.transcript, parsed.channel);
+        // #region agent log
+        if !raw_words.is_empty() {
+            let sample: Vec<_> = raw_words
+                .iter()
+                .take(12)
+                .map(|w| {
+                    serde_json::json!({
+                        "sp": w.speaker,
+                        "ch": w.channel,
+                        "t": w.text.chars().take(24).collect::<String>(),
+                    })
+                })
+                .collect();
+            owhisper_interface::agent_debug::append_ndjson_line(&serde_json::json!({
+                "hypothesisId": "H2",
+                "location": "processor.rs:process",
+                "message": "assembled_raw_words",
+                "data": {
+                    "parsed_channel": parsed.channel,
+                    "n_raw": raw_words.len(),
+                    "distinct_speaker": raw_words
+                        .iter()
+                        .filter_map(|w| w.speaker)
+                        .collect::<std::collections::BTreeSet<i32>>(),
+                    "sample": sample,
+                    "is_final": parsed.is_final,
+                },
+                "timestamp": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis())
+                    .unwrap_or(0),
+            }));
+        }
+        // #endregion
         if raw_words.is_empty() {
             return None;
         }

@@ -98,7 +98,32 @@ fn determine_key(
     if !frame.word.is_final
         && let Some(&index) = last_segment_by_channel.get(&frame.word.channel)
     {
-        return segments[index].key.clone();
+        let reused = segments[index].key.clone();
+        let fresh = create_segment_key(frame.word.channel, frame.identity.as_ref());
+        // #region agent log
+        owhisper_interface::agent_debug::append_ndjson_line(&serde_json::json!({
+            "hypothesisId": "H3",
+            "location": "collect.rs:determine_key",
+            "message": "partial_key_reuse",
+            "data": {
+                "channel": format!("{:?}", frame.word.channel),
+                "frame_speaker_index": frame.word.speaker_index,
+                "reused_speaker_index": reused.speaker_index,
+                "fresh_speaker_index": fresh.speaker_index,
+                "keys_differ": reused != fresh,
+            },
+            "timestamp": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0),
+        }));
+        // #endregion
+        if let (Some(r), Some(f)) = (reused.speaker_index, fresh.speaker_index) {
+            if r != f {
+                return fresh;
+            }
+        }
+        return reused;
     }
 
     create_segment_key(frame.word.channel, frame.identity.as_ref())

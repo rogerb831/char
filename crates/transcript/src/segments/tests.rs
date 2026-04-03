@@ -406,13 +406,15 @@ fn propagates_remote_party_identity_when_channel_marked_complete() {
 }
 
 #[test]
-fn partial_word_ignores_its_own_runtime_hint_and_keeps_previous_segment_key() {
+fn partial_speaker_index_change_splits_segment_for_diarization() {
     let finals = vec![fw_si("0", 0, 100, 0, 0)];
     let partials = vec![pw_si("1", 150, 250, 0, 1)];
     let result = build_segments(&finals, &partials, &[], None);
-    assert_eq!(result.len(), 1);
+    assert_eq!(result.len(), 2);
     assert_eq!(result[0].key, key_speaker(0, 0));
-    assert_eq!(texts(&result[0]), vec!["0", "1"]);
+    assert_eq!(texts(&result[0]), vec!["0"]);
+    assert_eq!(result[1].key, key_speaker(0, 1));
+    assert_eq!(texts(&result[1]), vec!["1"]);
 }
 
 #[test]
