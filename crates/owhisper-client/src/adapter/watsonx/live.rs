@@ -194,35 +194,6 @@ impl RealtimeSttAdapter for WatsonxAdapter {
             }
             let channel_index_vec =
                 watsonx_output_channel_index(block.channel_index.as_ref(), &words);
-            // #region agent log
-            {
-                let sp_vals: Vec<i32> = words.iter().filter_map(|w| w.speaker).collect();
-                let mut uniq = sp_vals.clone();
-                uniq.sort_unstable();
-                uniq.dedup();
-                let with_sp = words.iter().filter(|w| w.speaker.is_some()).count();
-                owhisper_interface::agent_debug::append_ndjson_line(&serde_json::json!({
-                    "hypothesisId": "H1",
-                    "location": "watsonx/live.rs:parse_response",
-                    "message": "watsonx_emit_block",
-                    "data": {
-                        "n_words": words.len(),
-                        "words_with_speaker": with_sp,
-                        "distinct_word_speakers": uniq,
-                        "channel_index": channel_index_vec,
-                        "n_labels": labels_for_block.len(),
-                        "label_speakers": labels_for_block.iter().map(|l| l.speaker).collect::<Vec<i32>>(),
-                        "is_final": block.final_,
-                        "raw_has_speaker_labels_key": raw.contains("\"speaker_labels\"")
-                            || raw.contains("\"speakerLabels\""),
-                    },
-                    "timestamp": std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_millis())
-                        .unwrap_or(0),
-                }));
-            }
-            // #endregion
             let (start, duration) = calculate_time_span(&words);
             let is_final = block.final_;
             let channel = Channel {

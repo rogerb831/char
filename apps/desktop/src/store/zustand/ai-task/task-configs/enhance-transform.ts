@@ -16,6 +16,7 @@ import {
   buildRenderTranscriptRequestFromStore,
   renderTranscriptSegments,
 } from "~/stt/render-transcript";
+import { runWatsonBatchSttBeforeEnhance } from "~/stt/watson-pre-enhance-batch";
 
 type TranscriptMeta = {
   id: string;
@@ -42,6 +43,8 @@ async function transformArgs(
   settingsStore: SettingsStore,
 ): Promise<TaskArgsMapTransformed["enhance"]> {
   const { sessionId, templateId } = args;
+
+  await runWatsonBatchSttBeforeEnhance(sessionId, store, settingsStore);
 
   const sessionContext = getSessionContext(sessionId, store);
   const template = templateId ? getTemplateData(templateId, store) : null;

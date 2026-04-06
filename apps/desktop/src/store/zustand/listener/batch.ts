@@ -91,7 +91,7 @@ export const createBatchSlice = <T extends BatchState>(
   handleBatchResponse: (sessionId, response) => {
     const persist = get().batchPersist[sessionId];
 
-    const [words, hints] = transformBatch(response);
+    const [words, hints] = transformBatchResponse(response);
     if (!words.length) {
       return;
     }
@@ -218,7 +218,7 @@ export const createBatchSlice = <T extends BatchState>(
   },
 });
 
-function transformBatch(
+export function transformBatchResponse(
   response: BatchResponse,
 ): [WordLike[], RuntimeSpeakerHint[]] {
   const allWords: WordLike[] = [];

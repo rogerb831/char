@@ -1,4 +1,3 @@
-pub mod agent_debug;
 pub mod batch;
 pub mod batch_sse;
 pub mod batch_stream;
